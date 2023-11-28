@@ -49,11 +49,11 @@ def cria_reserva(reserva: Reserva):
         return reserva
 
 
-@reservas_router.post("/{id_reserva}/checkin/{num_poltrona}")
-def faz_checkin(id_reserva: int, num_poltrona: int):
+@reservas_router.post("/{codigo_reserva}/checkin/{num_poltrona}")
+def faz_checkin(codigo_reserva: str, num_poltrona: int):
     with get_session() as session:
-        
-        reserva = session.exec(select(Reserva).where(Reserva.id == id_reserva)).first()
+        codigo_reservas = select(Reserva).where(Reserva.codigo_reserva == codigo_reserva)
+        reserva = session.exec(codigo_reservas).first()
 
         if not reserva:
             return JSONResponse(
@@ -61,38 +61,8 @@ def faz_checkin(id_reserva: int, num_poltrona: int):
                 content="Reserva não encontrada.",
             )
 
-        voo = session.exec(select(Voo).where(Voo.id == reserva.voo_id)).first()
-
-        if not voo:
-            return JSONResponse(
-                status_code=404,
-                detail="Voo não encontrado.",
-            )  
-        
-        poltrona_field = f"poltrona_{num_poltrona}"
-
-        if getattr(voo, poltrona_field) is None:
-            setattr(voo, poltrona_field, reserva.codigo_reserva)
-            session.commit()
-            return {"message": "Check-in realizado com sucesso."}
-        else:
-            return JSONResponse(
-            status_code=400,
-            content=f"A poltrona {num_poltrona} já está ocupada.",
-        )
-             
-@reservas_router.patch("/{id_reserva}/checkin/{num_poltrona}")
-def faz_checkin(id_reserva: int, num_poltrona: int):
-    with get_session() as session:
-        reserva = session.exec(select(Reserva).where(Reserva.id == id_reserva)).first()
-
-        if not reserva:
-            return JSONResponse(
-                status_code=404,
-                content="Reserva não encontrada.",
-            )
-
-        voo = session.exec(select(Voo).where(Voo.id == reserva.voo_id)).first()
+        statement = select(Voo).where(Voo.id == reserva.voo_id)
+        voo = session.exec(statement).first()
 
         if not voo:
             return JSONResponse(
@@ -100,14 +70,55 @@ def faz_checkin(id_reserva: int, num_poltrona: int):
                 detail="Voo não encontrado.",
             ) 
 
-        poltrona_field = f"poltrona_{num_poltrona}"
+        poltrona_atual = getattr(voo, f"poltrona_{num_poltrona}")
 
-        if getattr(voo, poltrona_field) is None:
-            setattr(voo, poltrona_field, reserva.codigo_reserva)
-            session.commit()
-            return {"message": "Check-in realizado com sucesso."}
-        else:
+        if poltrona_atual is not None:
             return JSONResponse(
             status_code=400,
             content=f"A poltrona {num_poltrona} já está ocupada.",
         )
+
+        setattr(voo, f"poltrona_{num_poltrona}", codigo_reserva)
+
+        session.add(voo)
+        session.commit()
+        session.refresh(voo)
+
+        return {"message": f"Check-in realizado com sucesso para a reserva {codigo_reserva} na poltrona {num_poltrona}."}
+             
+@reservas_router.patch("/{codigo_reserva}/checkin/{num_poltrona}")
+def faz_checkin(codigo_reserva: int, num_poltrona: int):
+    with get_session() as session:
+        codigo_reservas = select(Reserva).where(Reserva.codigo_reserva == codigo_reserva)
+        reserva = session.exec(codigo_reservas).first()
+
+        if not reserva:
+            return JSONResponse(
+                status_code=404,
+                content="Reserva não encontrada.",
+            )
+
+        statement = select(Voo).where(Voo.id == reserva.voo_id)
+        voo = session.exec(statement).first()
+
+        if not voo:
+            return JSONResponse(
+                status_code=404,
+                detail="Voo não encontrado.",
+            ) 
+
+        poltrona_atual = getattr(voo, f"poltrona_{num_poltrona}")
+
+        if poltrona_atual is not None:
+            return JSONResponse(
+            status_code=400,
+            content=f"A poltrona {num_poltrona} já está ocupada.",
+            )
+
+        setattr(voo, f"poltrona_{num_poltrona}", codigo_reserva)
+
+        session.add(voo)
+        session.commit()
+        session.refresh(voo)
+
+        return {"message": f"Check-in realizado com sucesso para a reserva {codigo_reserva} na poltrona {num_poltrona}."}
