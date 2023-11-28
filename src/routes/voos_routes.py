@@ -33,7 +33,7 @@ def cria_voo(voo: Voo):
 
 @voos_router.get("/vendas")
 def lista_voos_venda():
-    LIMITE_HORAS = 3
+    LIMITE_HORAS = 2
     with get_session() as session:
         hora_limite = datetime.now() + timedelta(hours=LIMITE_HORAS)
         statement = select(Voo).where(Voo.data_saida >= hora_limite)
@@ -48,4 +48,20 @@ def lista_voos():
         voo = session.exec(statement).all()
         return voo
 
-# TODO - Implementar rota que retorne as poltronas por id do voo
+@voos_router.get("/{voo_id}")
+def obter_poltronas_voo(voo_id: int):
+    with get_session() as session:
+        voo = session.exec(select(Voo).where(Voo.id == voo_id)).first()
+        if not voo:
+            return JSONResponse(
+                content={"message": f"Voo com ID {voo_id} não encontrado."},
+                status_code=404,
+            )
+
+        poltronas = [
+            voo.poltrona_1, voo.poltrona_2, voo.poltrona_3,
+            voo.poltrona_4, voo.poltrona_5, voo.poltrona_6,
+            voo.poltrona_7, voo.poltrona_8, voo.poltrona_9,
+        ]
+
+        return poltronas
